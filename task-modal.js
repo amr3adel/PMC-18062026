@@ -14,6 +14,19 @@
       .filter((tag, index, tags) => tags.indexOf(tag) === index);
   }
 
+  function mergeTags(existingTags, nextTags) {
+    return [...existingTags, ...nextTags].filter((tag, index, tags) => tags.indexOf(tag) === index);
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
   function durationToFields(minutes) {
     if (!minutes) return { value: "", unit: "minutes" };
     if (minutes % 60 === 0) return { value: minutes / 60, unit: "hours" };
@@ -42,6 +55,7 @@
       duration: document.getElementById("task-duration"),
       durationUnit: document.getElementById("task-duration-unit"),
       tags: document.getElementById("task-tags"),
+      tagChips: document.getElementById("task-tags-chips"),
       scheduledDate: document.getElementById("task-scheduled-date"),
       scheduledTime: document.getElementById("task-scheduled-time"),
     };
@@ -49,10 +63,13 @@
     let mode = "create";
     let editingTask = null;
     let defaults = {};
+    let selectedTags = [];
 
     function close() {
       modal.classList.add("hidden");
       form.reset();
+      selectedTags = [];
+      renderTagChips();
       editingTask = null;
       defaults = {};
     }
@@ -73,7 +90,9 @@
       fields.dueDate.value = editingTask ? editingTask.dueDate || "" : defaults.dueDate || "";
       fields.duration.value = durationFields.value;
       fields.durationUnit.value = durationFields.unit;
-      fields.tags.value = editingTask ? (editingTask.tags || []).join(", ") : defaults.tags || "";
+      selectedTags = editingTask ? [...(editingTask.tags || [])] : parseTags(defaults.tags || "");
+      fields.tags.value = "";
+      renderTagChips();
       fields.scheduledDate.value = editingTask ? editingTask.scheduledDate || "" : defaults.scheduledDate || "";
       fields.scheduledTime.value = editingTask ? editingTask.scheduledTime || "" : defaults.scheduledTime || "";
 
@@ -81,7 +100,37 @@
       fields.title.focus();
     }
 
+    function syncTagsFromInput() {
+      const nextTags = parseTags(fields.tags.value);
+      if (nextTags.length > 0) {
+        selectedTags = mergeTags(selectedTags, nextTags);
+        fields.tags.value = "";
+        renderTagChips();
+      }
+    }
+
+    function renderTagChips() {
+      fields.tagChips.innerHTML = selectedTags
+        .map(
+          (tag) => `
+            <span class="tag-chip">
+              ${escapeHtml(tag)}
+              <button type="button" aria-label="Remove ${escapeHtml(tag)}" data-remove-tag="${escapeHtml(tag)}">x</button>
+            </span>
+          `
+        )
+        .join("");
+
+      fields.tagChips.querySelectorAll("[data-remove-tag]").forEach((button) => {
+        button.addEventListener("click", () => {
+          selectedTags = selectedTags.filter((tag) => tag !== button.dataset.removeTag);
+          renderTagChips();
+        });
+      });
+    }
+
     function readTaskFromForm() {
+      syncTagsFromInput();
       const now = TaskStorage.nowIso();
       const base = editingTask || {
         id: TaskStorage.uuid(),
@@ -97,7 +146,7 @@
         priority: fields.priority.value,
         dueDate: fields.dueDate.value || null,
         estimatedDuration: fieldsToDuration(fields.duration.value, fields.durationUnit.value),
-        tags: parseTags(fields.tags.value),
+        tags: selectedTags,
         scheduledDate: fields.scheduledDate.value || null,
         scheduledTime: fields.scheduledTime.value || null,
         updatedAt: now,
@@ -113,6 +162,14 @@
       }
       options.onSave(task, mode);
       close();
+    });
+
+    fields.tags.addEventListener("blur", syncTagsFromInput);
+    fields.tags.addEventListener("keydown", (event) => {
+      if (event.key === "," || event.key === "Enter") {
+        event.preventDefault();
+        syncTagsFromInput();
+      }
     });
 
     deleteButton.addEventListener("click", () => {

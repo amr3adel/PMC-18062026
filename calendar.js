@@ -46,6 +46,24 @@
         viewState.selectedDate = cell.dataset.date;
         render(root, context);
       });
+      cell.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        cell.classList.add("drag-over");
+      });
+      cell.addEventListener("dragleave", () => cell.classList.remove("drag-over"));
+      cell.addEventListener("drop", (event) => {
+        event.preventDefault();
+        cell.classList.remove("drag-over");
+        const taskId = event.dataTransfer.getData("text/task-id") || event.dataTransfer.getData("text/plain");
+        const calendarKind = event.dataTransfer.getData("text/calendar-kind");
+        if (!taskId) return;
+        if (calendarKind === "due") {
+          context.updateTask(taskId, { dueDate: cell.dataset.date });
+        } else {
+          context.updateTask(taskId, { scheduledDate: cell.dataset.date, scheduledTime: null });
+        }
+        viewState.selectedDate = cell.dataset.date;
+      });
     });
 
     root.querySelectorAll("[data-task-chip]").forEach((chip) => {
@@ -53,10 +71,23 @@
         event.stopPropagation();
         context.openTask(chip.dataset.taskChip);
       });
+      chip.addEventListener("dragstart", (event) => {
+        event.stopPropagation();
+        event.dataTransfer.setData("text/task-id", chip.dataset.taskChip);
+        event.dataTransfer.setData("text/plain", chip.dataset.taskChip);
+        event.dataTransfer.setData("text/calendar-kind", chip.dataset.calendarKind);
+        event.dataTransfer.effectAllowed = "move";
+      });
     });
 
     root.querySelectorAll("[data-day-task]").forEach((item) => {
       item.addEventListener("click", () => context.openTask(item.dataset.dayTask));
+      item.addEventListener("dragstart", (event) => {
+        event.dataTransfer.setData("text/task-id", item.dataset.dayTask);
+        event.dataTransfer.setData("text/plain", item.dataset.dayTask);
+        event.dataTransfer.setData("text/calendar-kind", item.dataset.calendarKind);
+        event.dataTransfer.effectAllowed = "move";
+      });
     });
   }
 
@@ -96,7 +127,7 @@
     if (entry.kind === "scheduled") classes.push("scheduled");
     if (entry.kind === "combined") classes.push("combined");
     return `
-      <span class="${classes.join(" ")}" data-task-chip="${entry.task.id}" style="border-left-color:${context.priorityColor(entry.task.priority)}">
+      <span class="${classes.join(" ")}" draggable="true" data-task-chip="${entry.task.id}" data-calendar-kind="${entry.kind === "due" ? "due" : "scheduled"}" style="border-left-color:${context.priorityColor(entry.task.priority)}">
         ${entry.kind === "combined" ? "Due + scheduled: " : entry.kind === "scheduled" ? "Scheduled: " : "Due: "}
         ${ProfilesView.escapeHtml(entry.task.title)}
       </span>
@@ -119,16 +150,20 @@
             ? `<div class="day-panel-list">
                 ${entries
                   .map(
-                    (entry) => `
-                      <button class="day-panel-item" type="button" data-day-task="${entry.task.id}">
-                        <h4>${ProfilesView.escapeHtml(entry.task.title)}</h4>
-                        <div class="task-meta">
-                          <span class="priority-badge priority-${entry.task.priority}">${entry.task.priority}</span>
-                          <span>${entry.kind === "combined" ? "Due and scheduled" : entry.kind}</span>
-                          ${entry.task.scheduledTime ? `<span>${entry.task.scheduledTime}</span>` : ""}
-                        </div>
-                      </button>
-                    `
+                    (entry) => {
+                      const tags = entry.task.tags.map((tag) => `<span class="tag">${ProfilesView.escapeHtml(tag)}</span>`).join("");
+                      return `
+                        <button class="day-panel-item" type="button" draggable="true" data-day-task="${entry.task.id}" data-calendar-kind="${entry.kind === "due" ? "due" : "scheduled"}" style="border-left:4px solid ${context.priorityColor(entry.task.priority)}">
+                          <h4>${ProfilesView.escapeHtml(entry.task.title)}</h4>
+                          <div class="task-meta">
+                            <span class="priority-badge priority-${entry.task.priority}">${entry.task.priority}</span>
+                            <span>${entry.kind === "combined" ? "Due and scheduled" : entry.kind}</span>
+                            ${entry.task.scheduledTime ? `<span>${entry.task.scheduledTime}</span>` : ""}
+                            ${tags}
+                          </div>
+                        </button>
+                      `;
+                    }
                   )
                   .join("")}
               </div>`

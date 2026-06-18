@@ -14,26 +14,13 @@
 
   function render(root, context) {
     const tasks = context.tasks;
-    if (tasks.length === 0) {
-      root.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-art" aria-hidden="true"></div>
-          <h1 class="view-title">Start with your first task</h1>
-          <p>Create a task in ${ProfilesView.escapeHtml(context.profile.name)} and move it through your workflow.</p>
-          <button class="button primary" type="button" data-action="empty-add">Add your first task</button>
-        </div>
-      `;
-      root.querySelector("[data-action='empty-add']").addEventListener("click", () => context.createTask({ status: "backlog" }));
-      return;
-    }
-
     root.innerHTML = `
       <div class="view-header">
         <div>
           <h1 class="view-title">Kanban Board</h1>
           <p class="view-subtitle">Drag cards between workflow stages for ${ProfilesView.escapeHtml(context.profile.name)}.</p>
         </div>
-        <button class="button primary" type="button" data-action="add-task">Add task</button>
+        <button class="button add-task" type="button" data-action="add-task">Add task</button>
       </div>
       <div class="kanban-board">
         ${columns.map((column) => renderColumn(column, tasks, context)).join("")}
@@ -53,7 +40,16 @@
       });
       card.addEventListener("dragstart", (event) => {
         event.dataTransfer.setData("text/task-id", card.dataset.taskId);
+        event.dataTransfer.setData("text/plain", card.dataset.taskId);
         event.dataTransfer.effectAllowed = "move";
+      });
+    });
+
+    root.querySelectorAll("[data-tag-filter-value]").forEach((tagButton) => {
+      tagButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        state.tagFilter = tagButton.dataset.tagFilterValue;
+        render(root, context);
       });
     });
 
@@ -93,12 +89,18 @@
       tag.addEventListener("input", () => {
         state.tagFilter = tag.value.trim();
         render(root, context);
+        const nextTagInput = root.querySelector("[data-tag-filter]");
+        if (nextTagInput) {
+          nextTagInput.focus();
+          nextTagInput.setSelectionRange(nextTagInput.value.length, nextTagInput.value.length);
+        }
       });
     }
   }
 
   function renderColumn(column, allTasks, context) {
-    let tasks = allTasks.filter((task) => task.status === column.id);
+    const rawTasks = allTasks.filter((task) => task.status === column.id);
+    let tasks = rawTasks;
     if (column.id === "backlog") {
       tasks = filterBacklog(tasks);
       tasks = sortBacklog(tasks);
@@ -130,13 +132,36 @@
                 </div>`
               : ""
           }
-          <button class="button ghost" type="button" data-add-status="${column.id}">Add task</button>
+          <button class="button add-task" type="button" data-add-status="${column.id}">Add task</button>
         </div>
         <div class="task-list" data-status="${column.id}">
-          ${tasks.map((task) => renderTaskCard(task, context)).join("") || `<p class="muted">No tasks here.</p>`}
+          ${tasks.map((task) => renderTaskCard(task, context)).join("") || renderColumnEmpty(column, allTasks.length, rawTasks.length)}
         </div>
       </section>
     `;
+  }
+
+  function renderColumnEmpty(column, totalTasks, rawColumnCount) {
+    if (column.id === "backlog" && totalTasks === 0) {
+      return `
+        <div class="empty-state column-empty-state">
+          <div class="empty-art small" aria-hidden="true"></div>
+          <h4>Start with your first task</h4>
+          <p>Create a backlog item, then drag it into the flow.</p>
+          <button class="button add-task" type="button" data-add-status="backlog">Add your first task</button>
+        </div>
+      `;
+    }
+
+    if (column.id === "backlog" && rawColumnCount > 0) {
+      return `<p class="muted">No backlog matches your filters.</p>`;
+    }
+
+    if (column.id === "backlog") {
+      return `<p class="muted">Backlog is clear.</p>`;
+    }
+
+    return `<p class="muted">No tasks here.</p>`;
   }
 
   function filterBacklog(tasks) {
@@ -163,7 +188,12 @@
   function renderTaskCard(task, context) {
     const due = task.dueDate ? TaskStorage.formatDate(task.dueDate) : "";
     const overdue = task.dueDate && task.dueDate < TaskStorage.todayIso() && task.status !== "done";
-    const tags = task.tags.map((tag) => `<span class="tag">${ProfilesView.escapeHtml(tag)}</span>`).join("");
+    const tags = task.tags
+      .map(
+        (tag) =>
+          `<button class="tag tag-button${state.tagFilter === tag ? " active" : ""}" type="button" data-tag-filter-value="${ProfilesView.escapeHtml(tag)}">${ProfilesView.escapeHtml(tag)}</button>`
+      )
+      .join("");
     return `
       <article class="task-card" tabindex="0" draggable="true" data-task-id="${task.id}" style="border-left-color:${context.priorityColor(task.priority)}">
         <h4>${ProfilesView.escapeHtml(task.title)}</h4>

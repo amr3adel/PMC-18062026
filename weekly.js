@@ -46,6 +46,7 @@
       taskEl.addEventListener("dragstart", (event) => {
         const id = taskEl.dataset.unscheduledTask || taskEl.dataset.weekTask;
         event.dataTransfer.setData("text/task-id", id);
+        event.dataTransfer.setData("text/plain", id);
         event.dataTransfer.effectAllowed = "move";
       });
       taskEl.addEventListener("click", () => context.openTask(taskEl.dataset.unscheduledTask || taskEl.dataset.weekTask));
@@ -60,7 +61,7 @@
       slot.addEventListener("drop", (event) => {
         event.preventDefault();
         slot.classList.remove("drag-over");
-        const taskId = event.dataTransfer.getData("text/task-id");
+        const taskId = event.dataTransfer.getData("text/task-id") || event.dataTransfer.getData("text/plain");
         if (taskId) {
           context.updateTask(taskId, {
             scheduledDate: slot.dataset.date,
@@ -70,10 +71,16 @@
       });
     });
 
-    root.querySelector(".unscheduled-list").addEventListener("dragover", (event) => event.preventDefault());
-    root.querySelector(".unscheduled-list").addEventListener("drop", (event) => {
+    const unscheduledList = root.querySelector(".unscheduled-list");
+    unscheduledList.addEventListener("dragover", (event) => {
       event.preventDefault();
-      const taskId = event.dataTransfer.getData("text/task-id");
+      unscheduledList.classList.add("drag-over");
+    });
+    unscheduledList.addEventListener("dragleave", () => unscheduledList.classList.remove("drag-over"));
+    unscheduledList.addEventListener("drop", (event) => {
+      event.preventDefault();
+      unscheduledList.classList.remove("drag-over");
+      const taskId = event.dataTransfer.getData("text/task-id") || event.dataTransfer.getData("text/plain");
       if (taskId) context.updateTask(taskId, { scheduledDate: null, scheduledTime: null });
     });
 
@@ -104,12 +111,14 @@
   }
 
   function renderSidebarTask(task, context) {
+    const tags = task.tags.map((tag) => `<span class="tag">${ProfilesView.escapeHtml(tag)}</span>`).join("");
     return `
       <article class="task-card" draggable="true" data-unscheduled-task="${task.id}" style="border-left-color:${context.priorityColor(task.priority)}">
         <h4>${ProfilesView.escapeHtml(task.title)}</h4>
         <div class="task-meta">
           <span class="priority-badge priority-${task.priority}">${task.priority}</span>
           ${task.estimatedDuration ? `<span>${TaskStorage.formatMinutes(task.estimatedDuration)}</span>` : ""}
+          ${tags}
         </div>
       </article>
     `;
@@ -162,7 +171,7 @@
     return `
       <button class="week-task" type="button" draggable="true" data-week-task="${task.id}" style="border-left-color:${context.priorityColor(task.priority)}; min-height:${rows * 34}px">
         <strong>${ProfilesView.escapeHtml(task.title)}</strong>
-        <span>${task.scheduledTime || ""}${task.estimatedDuration ? ` · ${TaskStorage.formatMinutes(task.estimatedDuration)}` : ""}</span>
+        <span>${task.scheduledTime || ""}${task.estimatedDuration ? ` - ${TaskStorage.formatMinutes(task.estimatedDuration)}` : ""}</span>
       </button>
     `;
   }
