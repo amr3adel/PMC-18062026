@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Personal Task Manager</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Personal Task Manager">
+          <span class="brand-mark">PM</span>
+          <span>Task Manager</span>
+        </a>
+
+        <nav class="profile-nav" aria-label="Profiles">
+          <div id="profile-tabs" class="profile-tabs"></div>
+          <div class="profile-actions">
+            <button id="add-profile-btn" class="icon-button" type="button" title="Add profile" aria-label="Add profile">+</button>
+            <button id="rename-profile-btn" class="icon-button" type="button" title="Rename profile" aria-label="Rename profile">✎</button>
+            <button id="delete-profile-btn" class="icon-button danger" type="button" title="Delete profile" aria-label="Delete profile">×</button>
+          </div>
+        </nav>
+
+        <div class="topbar-right">
+          <div class="view-switcher" role="tablist" aria-label="Views">
+            <button class="view-button active" type="button" data-view="kanban">Kanban</button>
+            <button class="view-button" type="button" data-view="calendar">Calendar</button>
+            <button class="view-button" type="button" data-view="weekly">Weekly</button>
+          </div>
+          <button id="theme-toggle" class="icon-button" type="button" title="Toggle theme" aria-label="Toggle theme">◐</button>
+        </div>
+      </header>
+
+      <main class="main-layout">
+        <section id="view-root" class="view-root" aria-live="polite"></section>
+      </main>
+    </div>
+
+    <div id="task-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
+      <form id="task-form" class="task-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Task</p>
+            <h2 id="task-modal-title">New task</h2>
+          </div>
+          <button id="task-cancel-x" class="icon-button" type="button" aria-label="Close task panel">×</button>
+        </div>
+
+        <input id="task-id" type="hidden" />
+
+        <label class="field">
+          <span>Title</span>
+          <input id="task-title" type="text" required autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span>Description</span>
+          <textarea id="task-description" rows="4"></textarea>
+        </label>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Status</span>
+            <select id="task-status">
+              <option value="backlog">Backlog</option>
+              <option value="todo">To Do</option>
+              <option value="in_progress">In Progress</option>
+              <option value="done">Done</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Priority</span>
+            <select id="task-priority">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Due date</span>
+            <input id="task-due-date" type="date" />
+          </label>
+
+          <div class="field">
+            <span>Estimated duration</span>
+            <div class="duration-row">
+              <input id="task-duration" type="number" min="0" step="1" placeholder="0" />
+              <select id="task-duration-unit" aria-label="Duration unit">
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Tags</span>
+          <input id="task-tags" type="text" placeholder="admin, errands, client" autocomplete="off" />
+        </label>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Scheduled date</span>
+            <input id="task-scheduled-date" type="date" />
+          </label>
+
+          <label class="field">
+            <span>Scheduled time</span>
+            <input id="task-scheduled-time" type="time" step="1800" />
+          </label>
+        </div>
+
+        <div class="panel-actions">
+          <button id="task-delete" class="button ghost danger hidden" type="button">Delete</button>
+          <span class="panel-spacer"></span>
+          <button id="task-cancel" class="button ghost" type="button">Cancel</button>
+          <button class="button primary" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+    <script src="storage.js"></script>
+    <script src="task-modal.js"></script>
+    <script src="profiles.js"></script>
+    <script src="kanban.js"></script>
+    <script src="calendar.js"></script>
+    <script src="weekly.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
