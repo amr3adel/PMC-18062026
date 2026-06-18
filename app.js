@@ -19,6 +19,7 @@
   const modal = TaskModal.createTaskModal({
     getActiveProfile,
     onSave: saveTask,
+    onBulkSave: saveTasks,
     onDelete: deleteTask,
   });
 
@@ -74,7 +75,7 @@
     } else {
       delete document.documentElement.dataset.theme;
     }
-    themeToggle.textContent = theme === "dark" ? "☾" : theme === "light" ? "☼" : "◐";
+    themeToggle.textContent = theme === "dark" ? "Dark" : theme === "light" ? "Light" : "Auto";
   }
 
   function getActiveProfile() {
@@ -89,6 +90,12 @@
   function saveTask(task) {
     const exists = state.tasks.some((current) => current.id === task.id);
     state.tasks = exists ? state.tasks.map((current) => (current.id === task.id ? task : current)) : [...state.tasks, task];
+    commit();
+  }
+
+  function saveTasks(tasks) {
+    if (!tasks.length) return;
+    state.tasks = [...state.tasks, ...tasks];
     commit();
   }
 

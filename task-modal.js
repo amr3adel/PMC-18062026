@@ -39,15 +39,29 @@
     return unit === "hours" ? Math.round(amount * 60) : Math.round(amount);
   }
 
+  function parseBulkTitles(value) {
+    return value
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+
   function createTaskModal(options) {
     const modal = document.getElementById("task-modal");
     const form = document.getElementById("task-form");
     const title = document.getElementById("task-modal-title");
     const deleteButton = document.getElementById("task-delete");
+    const saveButton = form.querySelector("button[type='submit']");
 
     const fields = {
       id: document.getElementById("task-id"),
+      modeSwitch: document.getElementById("task-mode-switch"),
+      modeButtons: document.querySelectorAll("[data-task-mode]"),
+      singleTitleField: document.getElementById("single-title-field"),
+      singleDescriptionField: document.getElementById("single-description-field"),
+      bulkTitlesField: document.getElementById("bulk-titles-field"),
       title: document.getElementById("task-title"),
+      bulkTitles: document.getElementById("task-bulk-titles"),
       description: document.getElementById("task-description"),
       status: document.getElementById("task-status"),
       priority: document.getElementById("task-priority"),
@@ -64,6 +78,7 @@
     let editingTask = null;
     let defaults = {};
     let selectedTags = [];
+    let taskEntryMode = "single";
 
     function close() {
       modal.classList.add("hidden");
@@ -72,6 +87,7 @@
       renderTagChips();
       editingTask = null;
       defaults = {};
+      setTaskEntryMode("single");
     }
 
     function open(task, nextDefaults) {
@@ -80,10 +96,13 @@
       mode = editingTask ? "edit" : "create";
       title.textContent = editingTask ? "Edit task" : "New task";
       deleteButton.classList.toggle("hidden", !editingTask);
+      fields.modeSwitch.classList.toggle("hidden", Boolean(editingTask));
+      setTaskEntryMode("single");
 
       const durationFields = durationToFields(editingTask ? editingTask.estimatedDuration : defaults.estimatedDuration);
       fields.id.value = editingTask ? editingTask.id : "";
       fields.title.value = editingTask ? editingTask.title : "";
+      fields.bulkTitles.value = "";
       fields.description.value = editingTask ? editingTask.description || "" : "";
       fields.status.value = editingTask ? editingTask.status : defaults.status || "backlog";
       fields.priority.value = editingTask ? editingTask.priority : defaults.priority || "medium";
@@ -98,6 +117,21 @@
 
       modal.classList.remove("hidden");
       fields.title.focus();
+    }
+
+    function setTaskEntryMode(nextMode) {
+      taskEntryMode = nextMode;
+      fields.modeButtons.forEach((button) => button.classList.toggle("active", button.dataset.taskMode === taskEntryMode));
+      const isBulk = taskEntryMode === "bulk" && !editingTask;
+      fields.singleTitleField.classList.toggle("hidden", isBulk);
+      fields.singleDescriptionField.classList.toggle("hidden", isBulk);
+      fields.bulkTitlesField.classList.toggle("hidden", !isBulk);
+      fields.title.required = !isBulk;
+      fields.bulkTitles.required = isBulk;
+      saveButton.textContent = isBulk ? "Create tasks" : "Save";
+      if (isBulk) {
+        fields.bulkTitles.focus();
+      }
     }
 
     function syncTagsFromInput() {
@@ -153,8 +187,48 @@
       };
     }
 
+    function readSharedTaskFields() {
+      syncTagsFromInput();
+      return {
+        status: fields.status.value,
+        priority: fields.priority.value,
+        dueDate: fields.dueDate.value || null,
+        estimatedDuration: fieldsToDuration(fields.duration.value, fields.durationUnit.value),
+        tags: [...selectedTags],
+        scheduledDate: fields.scheduledDate.value || null,
+        scheduledTime: fields.scheduledTime.value || null,
+      };
+    }
+
+    function readBulkTasksFromForm() {
+      const titles = parseBulkTitles(fields.bulkTitles.value);
+      const now = TaskStorage.nowIso();
+      const sharedFields = readSharedTaskFields();
+      return titles.map((taskTitle) => ({
+        id: TaskStorage.uuid(),
+        profileId: options.getActiveProfile().id,
+        title: taskTitle,
+        description: "",
+        ...sharedFields,
+        tags: [...sharedFields.tags],
+        createdAt: now,
+        updatedAt: now,
+      }));
+    }
+
     form.addEventListener("submit", (event) => {
       event.preventDefault();
+      if (taskEntryMode === "bulk" && !editingTask) {
+        const tasks = readBulkTasksFromForm();
+        if (!tasks.length) {
+          fields.bulkTitles.focus();
+          return;
+        }
+        options.onBulkSave(tasks);
+        close();
+        return;
+      }
+
       const task = readTaskFromForm();
       if (!task.title) {
         fields.title.focus();
@@ -170,6 +244,10 @@
         event.preventDefault();
         syncTagsFromInput();
       }
+    });
+
+    fields.modeButtons.forEach((button) => {
+      button.addEventListener("click", () => setTaskEntryMode(button.dataset.taskMode));
     });
 
     deleteButton.addEventListener("click", () => {
