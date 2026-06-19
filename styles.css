@@ -96,8 +96,8 @@ button {
   background: color-mix(in srgb, var(--surface) 94%, transparent);
   border-bottom: 0.5px solid var(--border);
   display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(180px, 1fr) minmax(320px, 1.5fr) minmax(320px, 1fr);
+  gap: 14px;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(430px, 1.35fr) minmax(520px, auto);
   height: 68px;
   left: 0;
   padding: 0 24px;
@@ -198,22 +198,63 @@ button {
 }
 
 .topbar-right {
+  align-items: center;
   justify-content: flex-end;
+  min-width: 0;
 }
 
 .timer-shell {
   align-items: center;
+  background: var(--surface-soft);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
   display: flex;
-  gap: 8px;
+  gap: 7px;
+  max-width: 260px;
+  min-height: 42px;
+  min-width: 0;
+  padding: 4px 5px 4px 10px;
+}
+
+.timer-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .timer-status {
-  color: var(--muted);
+  color: var(--text);
   font-size: 12px;
-  max-width: 180px;
+  font-weight: 650;
+  max-width: 126px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.timer-button {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 9px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  height: 32px;
+  min-width: 44px;
+  padding: 0 9px;
+}
+
+.timer-shell.active {
+  background: color-mix(in srgb, var(--accent-soft) 75%, var(--surface-soft));
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+}
+
+.timer-shell.active .timer-button {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
 }
 
 .search-box {
@@ -1227,11 +1268,11 @@ button {
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  max-width: 540px;
+  gap: 14px;
+  max-width: 760px;
   overflow: auto;
-  padding: 24px;
-  width: min(540px, 100%);
+  padding: 22px;
+  width: min(760px, 100%);
 }
 
 .archive-panel {
@@ -1308,6 +1349,39 @@ button {
   grid-template-columns: 1fr 1fr;
 }
 
+.field-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.form-section {
+  background: color-mix(in srgb, var(--surface) 82%, var(--surface-soft));
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.section-heading {
+  align-items: start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.section-heading h3 {
+  font-size: 14px;
+  margin: 0;
+}
+
+.section-heading p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 2px 0 0;
+  max-width: 280px;
+  text-align: right;
+}
+
 .mode-switch {
   background: var(--surface-soft);
   border: 0.5px solid var(--border);
@@ -1379,6 +1453,11 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .topbar-right {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
   .main-layout {
     padding-top: 24px;
   }
@@ -1407,6 +1486,10 @@ button {
   .week-grid {
     min-width: 560px;
   }
+
+  .field-grid.three {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 767px) {
@@ -1418,6 +1501,23 @@ button {
   .view-header {
     grid-template-columns: 1fr;
     flex-direction: column;
+  }
+
+  .field-grid.three {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading {
+    display: grid;
+  }
+
+  .section-heading p {
+    max-width: none;
+    text-align: left;
+  }
+
+  .task-panel {
+    padding: 16px;
   }
 
   .view-actions {

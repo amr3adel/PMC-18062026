@@ -21,6 +21,7 @@
   const archiveClose = document.getElementById("archive-close");
   const archiveSearch = document.getElementById("archive-search");
   const archiveList = document.getElementById("archive-list");
+  const timerShell = document.querySelector(".timer-shell");
   const pomodoroToggle = document.getElementById("pomodoro-toggle");
   const timerStatus = document.getElementById("timer-status");
   const viewButtons = document.querySelectorAll(".view-button");
@@ -313,10 +314,12 @@
 
   function updateTimerStatus() {
     if (!activeTimer) {
-      timerStatus.textContent = "No timer";
-      pomodoroToggle.textContent = "25";
+      timerShell.classList.remove("active");
+      timerStatus.textContent = "Idle";
+      pomodoroToggle.textContent = "25m";
       return;
     }
+    timerShell.classList.add("active");
     const elapsedSeconds = Math.floor((Date.now() - activeTimer.startedAt) / 1000);
     if (activeTimer.mode === "pomodoro" && activeTimer.targetMinutes && elapsedSeconds >= activeTimer.targetMinutes * 60) {
       if (activeTimer.phase === "work") {
