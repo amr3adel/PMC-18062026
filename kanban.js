@@ -241,6 +241,8 @@
   function renderTaskCard(task, context) {
     const due = task.dueDate ? TaskStorage.formatDate(task.dueDate) : "";
     const overdue = task.dueDate && task.dueDate < TaskStorage.todayIso() && task.status !== "done";
+    const loggedMinutes = (task.timeLogs || []).reduce((sum, log) => sum + (Number(log.durationMinutes) || 0), 0);
+    const pomodoroCount = Math.floor(loggedMinutes / 25);
     const tags = task.tags
       .map(
         (tag) =>
@@ -262,7 +264,8 @@
           ${task.recurrence && task.recurrence !== "none" ? `<span class="tag">repeats ${task.recurrence}</span>` : ""}
           ${due ? `<span class="${overdue ? "overdue" : ""}">Due ${due}</span>` : ""}
           ${task.estimatedDuration ? `<span>${TaskStorage.formatMinutes(task.estimatedDuration)}</span>` : ""}
-          ${task.actualLoggedMinutes ? `<span>logged ${TaskStorage.formatMinutes(task.actualLoggedMinutes)}</span>` : ""}
+          ${loggedMinutes ? `<span>logged ${TaskStorage.formatMinutes(loggedMinutes)}</span>` : ""}
+          ${pomodoroCount ? `<span class="pomodoro-badges" title="${pomodoroCount} completed Pomodoro cycle${pomodoroCount === 1 ? "" : "s"}">${"🍅".repeat(Math.min(pomodoroCount, 6))}${pomodoroCount > 6 ? ` +${pomodoroCount - 6}` : ""}</span>` : ""}
           ${tags}
         </div>
         <div class="quick-edit-row">

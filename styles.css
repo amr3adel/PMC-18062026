@@ -321,7 +321,7 @@ button {
 .analytics-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   margin-bottom: 18px;
 }
 
@@ -343,6 +343,46 @@ button {
 .metric-card strong {
   font-size: 22px;
   line-height: 1;
+}
+
+.productivity-card {
+  grid-column: span 2;
+}
+
+.productivity-bars {
+  align-items: end;
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  height: 52px;
+}
+
+.productivity-day {
+  align-items: center;
+  display: grid;
+  gap: 4px;
+}
+
+.productivity-bar-wrap {
+  align-items: end;
+  background: var(--surface-soft);
+  border-radius: 999px;
+  display: flex;
+  height: 34px;
+  overflow: hidden;
+}
+
+.productivity-bar {
+  background: var(--accent);
+  border-radius: 999px;
+  min-height: 3px;
+  width: 100%;
+}
+
+.productivity-day small {
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
 }
 
 .view-header {
@@ -658,6 +698,16 @@ button {
   flex-wrap: wrap;
   font-size: 12px;
   gap: 7px;
+}
+
+.pomodoro-badges {
+  background: rgba(220, 38, 38, 0.12);
+  border-radius: 999px;
+  color: var(--priority-urgent);
+  display: inline-flex;
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 7px;
 }
 
 .quick-edit-row {
@@ -1100,8 +1150,45 @@ button {
   min-height: 34px;
   overflow: hidden;
   padding: 6px;
+  position: relative;
   text-align: left;
   width: 100%;
+}
+
+.week-task.resizing {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.resize-handle {
+  background: color-mix(in srgb, var(--accent) 75%, transparent);
+  border-radius: 999px;
+  bottom: 3px;
+  cursor: ns-resize;
+  height: 5px;
+  left: 22%;
+  position: absolute;
+  right: 22%;
+}
+
+.resize-handle::after {
+  bottom: 6px;
+  color: var(--muted);
+  content: "resize";
+  display: none;
+  font-size: 10px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.week-task:hover .resize-handle::after,
+.week-task.resizing .resize-handle::after {
+  display: block;
+}
+
+.overdue-task {
+  background: color-mix(in srgb, rgba(220, 38, 38, 0.14) 55%, var(--surface));
 }
 
 .week-task strong {

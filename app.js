@@ -287,11 +287,17 @@
     if (!activeTimer) return;
     const elapsedMinutes = Math.max(1, Math.round((Date.now() - activeTimer.startedAt) / 60000));
     if (activeTimer.taskId) {
+      const log = {
+        startedAt: new Date(activeTimer.startedAt).toISOString(),
+        durationMinutes: elapsedMinutes,
+        type: elapsedMinutes >= 25 ? "pomodoro" : "focus",
+      };
       state.tasks = state.tasks.map((task) =>
         task.id === activeTimer.taskId
           ? {
               ...task,
-              actualLoggedMinutes: (task.actualLoggedMinutes || 0) + elapsedMinutes,
+              timeLogs: [...(task.timeLogs || []), log],
+              actualLoggedMinutes: (task.timeLogs || []).reduce((sum, entry) => sum + entry.durationMinutes, 0) + elapsedMinutes,
               updatedAt: TaskStorage.nowIso(),
             }
           : task
@@ -349,6 +355,7 @@
       scheduledDate: shiftDate(updated.scheduledDate, updated.recurrence),
       archivedAt: null,
       actualLoggedMinutes: 0,
+      timeLogs: [],
       createdAt: now,
       updatedAt: now,
     });
@@ -459,6 +466,7 @@
       .filter((task) => task.scheduledDate && task.scheduledDate >= weekStart && task.scheduledDate <= weekEnd)
       .reduce((sum, task) => sum + (task.estimatedDuration || 30), 0);
     const urgentOpen = tasks.filter((task) => task.priority === "urgent" && task.status !== "done").length;
+    const dailyLogs = getWeeklyLogTotals(tasks, weekStart);
 
     analyticsRoot.innerHTML = `
       <article class="metric-card">
@@ -477,7 +485,46 @@
         <span>Open urgent</span>
         <strong>${urgentOpen}</strong>
       </article>
+      <article class="metric-card productivity-card">
+        <span>Worked this week</span>
+        <div class="productivity-bars">
+          ${dailyLogs
+            .map(
+              (day) => `
+                <div class="productivity-day">
+                  <div class="productivity-bar-wrap"><div class="productivity-bar" style="height:${day.height}%"></div></div>
+                  <small>${day.label}</small>
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+      </article>
     `;
+  }
+
+  function getWeeklyLogTotals(tasks, weekStartIso) {
+    const weekStart = TaskStorage.parseDateOnly(weekStartIso);
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = TaskStorage.addDays(weekStart, index);
+      return {
+        iso: TaskStorage.toDateInput(date),
+        label: new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date).slice(0, 2),
+        minutes: 0,
+      };
+    });
+    tasks.forEach((task) => {
+      (task.timeLogs || []).forEach((log) => {
+        const iso = log.startedAt ? log.startedAt.slice(0, 10) : "";
+        const day = days.find((candidate) => candidate.iso === iso);
+        if (day) day.minutes += Number(log.durationMinutes) || 0;
+      });
+    });
+    const maxMinutes = Math.max(60, ...days.map((day) => day.minutes));
+    return days.map((day) => ({
+      ...day,
+      height: Math.max(4, Math.round((day.minutes / maxMinutes) * 100)),
+    }));
   }
 
   function formatHours(minutes) {

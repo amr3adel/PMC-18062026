@@ -56,7 +56,52 @@
         document.body.classList.remove("is-dragging-task");
         taskEl.classList.remove("drag-source");
       });
-      taskEl.addEventListener("click", () => context.openTask(taskEl.dataset.unscheduledTask || taskEl.dataset.weekTask));
+      taskEl.addEventListener("click", () => {
+        if (taskEl.dataset.resizing === "true") return;
+        context.openTask(taskEl.dataset.unscheduledTask || taskEl.dataset.weekTask);
+      });
+    });
+
+    root.querySelectorAll("[data-resize-task]").forEach((handle) => {
+      handle.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const taskBlock = handle.closest("[data-week-task]");
+        const taskId = handle.dataset.resizeTask;
+        const startY = event.clientY;
+        const startDuration = Number(handle.dataset.duration) || 30;
+        taskBlock.dataset.resizing = "true";
+        taskBlock.classList.add("resizing");
+        try {
+          handle.setPointerCapture(event.pointerId);
+        } catch (error) {
+          // Some synthetic or older pointer events cannot be captured.
+        }
+
+        function onPointerMove(moveEvent) {
+          const deltaSlots = Math.round((moveEvent.clientY - startY) / 42);
+          const nextDuration = Math.max(30, startDuration + deltaSlots * 30);
+          taskBlock.style.minHeight = `${Math.ceil(nextDuration / 30) * 34}px`;
+          taskBlock.querySelector("[data-duration-label]").textContent = TaskStorage.formatMinutes(nextDuration);
+          handle.dataset.nextDuration = String(nextDuration);
+        }
+
+        function onPointerUp() {
+          const nextDuration = Number(handle.dataset.nextDuration) || startDuration;
+          taskBlock.classList.remove("resizing");
+          window.setTimeout(() => {
+            taskBlock.dataset.resizing = "false";
+          }, 0);
+          context.updateTask(taskId, { estimatedDuration: nextDuration });
+          handle.removeEventListener("pointermove", onPointerMove);
+          handle.removeEventListener("pointerup", onPointerUp);
+          handle.removeEventListener("pointercancel", onPointerUp);
+        }
+
+        handle.addEventListener("pointermove", onPointerMove);
+        handle.addEventListener("pointerup", onPointerUp);
+        handle.addEventListener("pointercancel", onPointerUp);
+      });
     });
 
     root.querySelectorAll(".week-slot").forEach((slot) => {
@@ -120,11 +165,13 @@
 
   function renderSidebarTask(task, context) {
     const tags = task.tags.map((tag) => `<span class="tag">${ProfilesView.escapeHtml(tag)}</span>`).join("");
+    const isOverdue = task.dueDate && task.dueDate < TaskStorage.todayIso() && task.status !== "done";
     return `
-      <article class="task-card" draggable="true" data-unscheduled-task="${task.id}" style="border-left-color:${context.priorityColor(task.priority)}">
+      <article class="task-card ${isOverdue ? "overdue-task" : ""}" draggable="true" data-unscheduled-task="${task.id}" style="border-left-color:${context.priorityColor(task.priority)}">
         <h4>${ProfilesView.escapeHtml(task.title)}</h4>
         <div class="task-meta">
           <span class="priority-badge priority-${task.priority}">${task.priority}</span>
+          ${isOverdue ? `<span class="overdue">Overdue ${TaskStorage.formatDate(task.dueDate)}</span>` : ""}
           ${task.estimatedDuration ? `<span>${TaskStorage.formatMinutes(task.estimatedDuration)}</span>` : ""}
           ${tags}
         </div>
@@ -176,10 +223,12 @@
 
   function renderWeekTask(task, context) {
     const rows = Math.max(1, Math.ceil((task.estimatedDuration || 30) / 30));
+    const duration = task.estimatedDuration || 30;
     return `
       <button class="week-task" type="button" draggable="true" data-week-task="${task.id}" style="border-left-color:${context.priorityColor(task.priority)}; min-height:${rows * 34}px">
         <strong>${ProfilesView.escapeHtml(task.title)}</strong>
-        <span>${task.scheduledTime || ""}${task.estimatedDuration ? ` - ${TaskStorage.formatMinutes(task.estimatedDuration)}` : ""}</span>
+        <span>${task.scheduledTime || ""} - <span data-duration-label>${TaskStorage.formatMinutes(duration)}</span></span>
+        <span class="resize-handle" data-resize-task="${task.id}" data-duration="${duration}" title="Drag to resize duration"></span>
       </button>
     `;
   }

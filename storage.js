@@ -100,7 +100,8 @@
               priority: ["low", "medium", "high", "urgent"].includes(task.priority) ? task.priority : "medium",
               dueDate: task.dueDate || null,
               estimatedDuration: Number.isFinite(Number(task.estimatedDuration)) ? Number(task.estimatedDuration) : null,
-              actualLoggedMinutes: Number.isFinite(Number(task.actualLoggedMinutes)) ? Number(task.actualLoggedMinutes) : 0,
+              timeLogs: normalizeTimeLogs(task),
+              actualLoggedMinutes: normalizeTimeLogs(task).reduce((sum, log) => sum + log.durationMinutes, 0),
               tags: Array.isArray(task.tags) ? task.tags : [],
               scheduledDate: task.scheduledDate || null,
               scheduledTime: task.scheduledTime || null,
@@ -127,6 +128,29 @@
       save(data);
       return data;
     }
+  }
+
+  function normalizeTimeLogs(task) {
+    if (Array.isArray(task.timeLogs)) {
+      return task.timeLogs
+        .map((log) => ({
+          startedAt: log.startedAt || task.updatedAt || nowIso(),
+          durationMinutes: Number.isFinite(Number(log.durationMinutes)) ? Math.max(1, Number(log.durationMinutes)) : 0,
+          type: log.type || "focus",
+        }))
+        .filter((log) => log.durationMinutes > 0);
+    }
+    const legacyMinutes = Number(task.actualLoggedMinutes);
+    if (Number.isFinite(legacyMinutes) && legacyMinutes > 0) {
+      return [
+        {
+          startedAt: task.updatedAt || nowIso(),
+          durationMinutes: legacyMinutes,
+          type: "legacy",
+        },
+      ];
+    }
+    return [];
   }
 
   function save(data) {

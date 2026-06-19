@@ -199,6 +199,7 @@
         scheduledTime: fields.scheduledTime.value || null,
         recurrence: fields.recurrence.value,
         actualLoggedMinutes: Number(base.actualLoggedMinutes) || 0,
+        timeLogs: Array.isArray(base.timeLogs) ? base.timeLogs : [],
         archivedAt: base.archivedAt || null,
         updatedAt: now,
       };
@@ -230,6 +231,7 @@
         ...sharedFields,
         tags: [...sharedFields.tags],
         actualLoggedMinutes: 0,
+        timeLogs: [],
         archivedAt: null,
         createdAt: now,
         updatedAt: now,
