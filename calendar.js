@@ -2,6 +2,7 @@
   const viewState = {
     monthDate: new Date(),
     selectedDate: TaskStorage.todayIso(),
+    typeFilter: "all",
   };
   const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -11,9 +12,14 @@
       <div class="view-header">
         <div>
           <h1 class="view-title">${monthTitle}</h1>
-          <p class="view-subtitle">Due dates use solid chips. Scheduled work uses dashed chips.</p>
+          <p class="view-subtitle">${context.searchQuery ? `Filtered by "${ProfilesView.escapeHtml(context.searchQuery)}"` : "Due work is solid. Scheduled work is dashed."}</p>
         </div>
         <div class="calendar-actions">
+          <div class="segmented-control" aria-label="Calendar task type">
+            <button class="${viewState.typeFilter === "all" ? "active" : ""}" type="button" data-calendar-filter="all">All</button>
+            <button class="${viewState.typeFilter === "due" ? "active" : ""}" type="button" data-calendar-filter="due">Due</button>
+            <button class="${viewState.typeFilter === "scheduled" ? "active" : ""}" type="button" data-calendar-filter="scheduled">Scheduled</button>
+          </div>
           <button class="button ghost" type="button" data-calendar-action="prev">Prev</button>
           <button class="button ghost" type="button" data-calendar-action="today">Today</button>
           <button class="button ghost" type="button" data-calendar-action="next">Next</button>
@@ -37,6 +43,13 @@
           viewState.monthDate = new Date();
           viewState.selectedDate = TaskStorage.todayIso();
         }
+        render(root, context);
+      });
+    });
+
+    root.querySelectorAll("[data-calendar-filter]").forEach((button) => {
+      button.addEventListener("click", () => {
+        viewState.typeFilter = button.dataset.calendarFilter;
         render(root, context);
       });
     });
@@ -66,6 +79,14 @@
       });
     });
 
+    root.querySelectorAll("[data-more-date]").forEach((more) => {
+      more.addEventListener("click", (event) => {
+        event.stopPropagation();
+        viewState.selectedDate = more.dataset.moreDate;
+        render(root, context);
+      });
+    });
+
     root.querySelectorAll("[data-task-chip]").forEach((chip) => {
       chip.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -77,6 +98,13 @@
         event.dataTransfer.setData("text/plain", chip.dataset.taskChip);
         event.dataTransfer.setData("text/calendar-kind", chip.dataset.calendarKind);
         event.dataTransfer.effectAllowed = "move";
+        document.body.classList.add("is-dragging-task");
+        chip.classList.add("drag-source");
+        setDragPreview(event, chip);
+      });
+      chip.addEventListener("dragend", () => {
+        document.body.classList.remove("is-dragging-task");
+        chip.classList.remove("drag-source");
       });
     });
 
@@ -87,6 +115,13 @@
         event.dataTransfer.setData("text/plain", item.dataset.dayTask);
         event.dataTransfer.setData("text/calendar-kind", item.dataset.calendarKind);
         event.dataTransfer.effectAllowed = "move";
+        document.body.classList.add("is-dragging-task");
+        item.classList.add("drag-source");
+        setDragPreview(event, item);
+      });
+      item.addEventListener("dragend", () => {
+        document.body.classList.remove("is-dragging-task");
+        item.classList.remove("drag-source");
       });
     });
   }
@@ -116,19 +151,22 @@
           <span>${day.date.getDate()}</span>
           ${tasks.length ? `<span class="muted">${tasks.length}</span>` : ""}
         </div>
-        ${tasks.slice(0, 4).map((entry) => renderChip(entry, context)).join("")}
-        ${tasks.length > 4 ? `<div class="muted">+${tasks.length - 4} more</div>` : ""}
+        <div class="calendar-chip-list">
+          ${tasks.slice(0, 3).map((entry) => renderChip(entry, context)).join("")}
+          ${tasks.length > 3 ? `<span class="task-chip more-chip" data-more-date="${day.iso}">+${tasks.length - 3} more</span>` : ""}
+        </div>
       </button>
     `;
   }
 
   function renderChip(entry, context) {
     const classes = ["task-chip"];
+    classes.push(`chip-${entry.kind}`);
     if (entry.kind === "scheduled") classes.push("scheduled");
     if (entry.kind === "combined") classes.push("combined");
     return `
       <span class="${classes.join(" ")}" draggable="true" data-task-chip="${entry.task.id}" data-calendar-kind="${entry.kind === "due" ? "due" : "scheduled"}" style="border-left-color:${context.priorityColor(entry.task.priority)}">
-        ${entry.kind === "combined" ? "Due + scheduled: " : entry.kind === "scheduled" ? "Scheduled: " : "Due: "}
+        <span class="chip-kind">${entry.kind === "combined" ? "Both" : entry.kind}</span>
         ${ProfilesView.escapeHtml(entry.task.title)}
       </span>
     `;
@@ -185,6 +223,11 @@
         };
       })
       .filter(Boolean)
+      .filter((entry) => {
+        if (viewState.typeFilter === "all") return true;
+        if (viewState.typeFilter === "due") return entry.kind === "due" || entry.kind === "combined";
+        return entry.kind === "scheduled" || entry.kind === "combined";
+      })
       .sort((a, b) => {
         const timeCompare = (a.task.scheduledTime || "99:99").localeCompare(b.task.scheduledTime || "99:99");
         if (timeCompare !== 0) return timeCompare;
@@ -195,4 +238,13 @@
   window.CalendarView = {
     render,
   };
+
+  function setDragPreview(event, element) {
+    const clone = element.cloneNode(true);
+    clone.classList.add("drag-preview");
+    clone.style.width = `${Math.max(element.offsetWidth, 180)}px`;
+    document.body.appendChild(clone);
+    event.dataTransfer.setDragImage(clone, 18, 18);
+    window.setTimeout(() => clone.remove(), 0);
+  }
 })();

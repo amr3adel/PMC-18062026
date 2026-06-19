@@ -14,14 +14,21 @@
           <span>Task Manager</span>
         </a>
 
-        <nav class="profile-nav" aria-label="Profiles">
-          <div id="profile-tabs" class="profile-tabs"></div>
-          <div class="profile-actions">
-            <button id="add-profile-btn" class="icon-button" type="button" title="Add profile" aria-label="Add profile">+</button>
-            <button id="rename-profile-btn" class="icon-button" type="button" title="Rename profile" aria-label="Rename profile">Edit</button>
-            <button id="delete-profile-btn" class="icon-button danger" type="button" title="Delete profile" aria-label="Delete profile">x</button>
-          </div>
-        </nav>
+        <div class="topbar-center">
+          <nav class="profile-nav" aria-label="Profiles">
+            <div id="profile-tabs" class="profile-tabs"></div>
+            <div class="profile-actions">
+              <button id="add-profile-btn" class="icon-button" type="button" title="Add profile" aria-label="Add profile">+</button>
+              <button id="rename-profile-btn" class="icon-button" type="button" title="Rename profile" aria-label="Rename profile">Edit</button>
+              <button id="delete-profile-btn" class="icon-button danger" type="button" title="Delete profile" aria-label="Delete profile">x</button>
+            </div>
+          </nav>
+
+          <label class="search-box" aria-label="Search tasks">
+            <span>/</span>
+            <input id="global-search" type="search" placeholder="Search tasks" autocomplete="off" />
+          </label>
+        </div>
 
         <div class="topbar-right">
           <div class="view-switcher" role="tablist" aria-label="Views">
@@ -34,6 +41,7 @@
       </header>
 
       <main class="main-layout">
+        <section id="analytics-root" class="analytics-grid" aria-label="Task analytics"></section>
         <section id="view-root" class="view-root" aria-live="polite"></section>
       </main>
     </div>

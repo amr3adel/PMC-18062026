@@ -48,6 +48,13 @@
         event.dataTransfer.setData("text/task-id", id);
         event.dataTransfer.setData("text/plain", id);
         event.dataTransfer.effectAllowed = "move";
+        document.body.classList.add("is-dragging-task");
+        taskEl.classList.add("drag-source");
+        setDragPreview(event, taskEl);
+      });
+      taskEl.addEventListener("dragend", () => {
+        document.body.classList.remove("is-dragging-task");
+        taskEl.classList.remove("drag-source");
       });
       taskEl.addEventListener("click", () => context.openTask(taskEl.dataset.unscheduledTask || taskEl.dataset.weekTask));
     });
@@ -100,6 +107,7 @@
           <p class="muted">Drag tasks onto a time slot.</p>
         </div>
         <div class="unscheduled-list">
+          <div class="drop-zone-label">Drop here to unschedule</div>
           ${
             tasks.length
               ? tasks.map((task) => renderSidebarTask(task, context)).join("")
@@ -190,4 +198,13 @@
   window.WeeklyView = {
     render,
   };
+
+  function setDragPreview(event, element) {
+    const clone = element.cloneNode(true);
+    clone.classList.add("drag-preview");
+    clone.style.width = `${Math.max(element.offsetWidth, 180)}px`;
+    document.body.appendChild(clone);
+    event.dataTransfer.setDragImage(clone, 18, 18);
+    window.setTimeout(() => clone.remove(), 0);
+  }
 })();

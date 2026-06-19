@@ -10,6 +10,7 @@
     backlogSort: "createdAt",
     priorityFilter: "all",
     tagFilter: "",
+    density: window.localStorage.getItem("taskmanager_kanban_density") || "comfortable",
   };
 
   function render(root, context) {
@@ -18,11 +19,17 @@
       <div class="view-header">
         <div>
           <h1 class="view-title">Kanban Board</h1>
-          <p class="view-subtitle">Drag cards between workflow stages for ${ProfilesView.escapeHtml(context.profile.name)}.</p>
+          <p class="view-subtitle">${context.searchQuery ? `Filtered by "${ProfilesView.escapeHtml(context.searchQuery)}"` : `Drag cards between workflow stages for ${ProfilesView.escapeHtml(context.profile.name)}.`}</p>
         </div>
-        <button class="button add-task" type="button" data-action="add-task">Add task</button>
+        <div class="view-actions">
+          <div class="segmented-control" aria-label="Card density">
+            <button class="${state.density === "comfortable" ? "active" : ""}" type="button" data-density="comfortable">Comfortable</button>
+            <button class="${state.density === "compact" ? "active" : ""}" type="button" data-density="compact">Compact</button>
+          </div>
+          <button class="button add-task" type="button" data-action="add-task">Add task</button>
+        </div>
       </div>
-      <div class="kanban-board">
+      <div class="kanban-board density-${state.density}">
         ${columns.map((column) => renderColumn(column, tasks, context)).join("")}
       </div>
     `;
@@ -34,14 +41,32 @@
     });
 
     root.querySelectorAll(".task-card").forEach((card) => {
-      card.addEventListener("click", () => context.openTask(card.dataset.taskId));
+      card.addEventListener("click", (event) => {
+        if (event.target.closest("[data-inline-edit], [data-tag-filter-value]")) return;
+        context.openTask(card.dataset.taskId);
+      });
       card.addEventListener("keydown", (event) => {
+        if (event.target.closest("[data-inline-edit], [data-tag-filter-value]")) return;
         if (event.key === "Enter" || event.key === " ") context.openTask(card.dataset.taskId);
       });
       card.addEventListener("dragstart", (event) => {
         event.dataTransfer.setData("text/task-id", card.dataset.taskId);
         event.dataTransfer.setData("text/plain", card.dataset.taskId);
         event.dataTransfer.effectAllowed = "move";
+        document.body.classList.add("is-dragging-task");
+        card.classList.add("drag-source");
+        setDragPreview(event, card);
+      });
+      card.addEventListener("dragend", () => {
+        document.body.classList.remove("is-dragging-task");
+        card.classList.remove("drag-source");
+      });
+    });
+
+    root.querySelectorAll("[data-inline-edit]").forEach((control) => {
+      control.addEventListener("click", (event) => event.stopPropagation());
+      control.addEventListener("change", () => {
+        context.updateTask(control.dataset.taskId, { [control.dataset.inlineEdit]: control.value });
       });
     });
 
@@ -62,8 +87,16 @@
       list.addEventListener("drop", (event) => {
         event.preventDefault();
         list.classList.remove("drag-over");
-        const taskId = event.dataTransfer.getData("text/task-id");
+        const taskId = event.dataTransfer.getData("text/task-id") || event.dataTransfer.getData("text/plain");
         if (taskId) context.updateTask(taskId, { status: list.dataset.status });
+      });
+    });
+
+    root.querySelectorAll("[data-density]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.density = button.dataset.density;
+        window.localStorage.setItem("taskmanager_kanban_density", state.density);
+        render(root, context);
       });
     });
 
@@ -135,6 +168,7 @@
           <button class="button add-task" type="button" data-add-status="${column.id}">Add task</button>
         </div>
         <div class="task-list" data-status="${column.id}">
+          <div class="drop-zone-label">Drop to move to ${column.label}</div>
           ${tasks.map((task) => renderTaskCard(task, context)).join("") || renderColumnEmpty(column, allTasks.length, rawTasks.length)}
         </div>
       </section>
@@ -203,8 +237,25 @@
           ${task.estimatedDuration ? `<span>${TaskStorage.formatMinutes(task.estimatedDuration)}</span>` : ""}
           ${tags}
         </div>
+        <div class="quick-edit-row">
+          <select data-inline-edit="status" data-task-id="${task.id}" aria-label="Change status for ${ProfilesView.escapeHtml(task.title)}">
+            ${columns.map((column) => `<option value="${column.id}" ${task.status === column.id ? "selected" : ""}>${column.label}</option>`).join("")}
+          </select>
+          <select data-inline-edit="priority" data-task-id="${task.id}" aria-label="Change priority for ${ProfilesView.escapeHtml(task.title)}">
+            ${["low", "medium", "high", "urgent"].map((priority) => `<option value="${priority}" ${task.priority === priority ? "selected" : ""}>${priority}</option>`).join("")}
+          </select>
+        </div>
       </article>
     `;
+  }
+
+  function setDragPreview(event, card) {
+    const clone = card.cloneNode(true);
+    clone.classList.add("drag-preview");
+    clone.style.width = `${card.offsetWidth}px`;
+    document.body.appendChild(clone);
+    event.dataTransfer.setDragImage(clone, 18, 18);
+    window.setTimeout(() => clone.remove(), 0);
   }
 
   window.KanbanView = {
