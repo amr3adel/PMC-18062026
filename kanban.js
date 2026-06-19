@@ -42,11 +42,11 @@
 
     root.querySelectorAll(".task-card").forEach((card) => {
       card.addEventListener("click", (event) => {
-        if (event.target.closest("[data-inline-edit], [data-tag-filter-value]")) return;
+        if (event.target.closest("[data-inline-edit], [data-tag-filter-value], [data-task-timer], [data-archive-task]")) return;
         context.openTask(card.dataset.taskId);
       });
       card.addEventListener("keydown", (event) => {
-        if (event.target.closest("[data-inline-edit], [data-tag-filter-value]")) return;
+        if (event.target.closest("[data-inline-edit], [data-tag-filter-value], [data-task-timer], [data-archive-task]")) return;
         if (event.key === "Enter" || event.key === " ") context.openTask(card.dataset.taskId);
       });
       card.addEventListener("dragstart", (event) => {
@@ -66,7 +66,21 @@
     root.querySelectorAll("[data-inline-edit]").forEach((control) => {
       control.addEventListener("click", (event) => event.stopPropagation());
       control.addEventListener("change", () => {
-        context.updateTask(control.dataset.taskId, { [control.dataset.inlineEdit]: control.value });
+        context.updateTask(control.dataset.taskId, { [control.dataset.inlineEdit]: control.value || null });
+      });
+    });
+
+    root.querySelectorAll("[data-task-timer]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        context.toggleTaskTimer(button.dataset.taskTimer);
+      });
+    });
+
+    root.querySelectorAll("[data-archive-task]").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        context.archiveTask(button.dataset.archiveTask);
       });
     });
 
@@ -76,6 +90,10 @@
         state.tagFilter = tagButton.dataset.tagFilterValue;
         render(root, context);
       });
+    });
+
+    root.querySelectorAll("[data-archive-done]").forEach((button) => {
+      button.addEventListener("click", () => context.archiveDoneTasks());
     });
 
     root.querySelectorAll(".task-list").forEach((list) => {
@@ -165,6 +183,7 @@
                 </div>`
               : ""
           }
+          ${column.id === "done" ? `<button class="button ghost" type="button" data-archive-done>Archive done tasks</button>` : ""}
           <button class="button add-task" type="button" data-add-status="${column.id}">Add task</button>
         </div>
         <div class="task-list" data-status="${column.id}">
@@ -228,22 +247,35 @@
           `<button class="tag tag-button${state.tagFilter === tag ? " active" : ""}" type="button" data-tag-filter-value="${ProfilesView.escapeHtml(tag)}">${ProfilesView.escapeHtml(tag)}</button>`
       )
       .join("");
+    const description = task.description ? `<div class="card-description">${window.TaskMarkdown ? window.TaskMarkdown.render(task.description) : ProfilesView.escapeHtml(task.description)}</div>` : "";
+    const isTiming = context.activeTimer && context.activeTimer.taskId === task.id;
     return `
       <article class="task-card" tabindex="0" draggable="true" data-task-id="${task.id}" style="border-left-color:${context.priorityColor(task.priority)}">
-        <h4>${ProfilesView.escapeHtml(task.title)}</h4>
+        <div class="card-title-row">
+          <span class="drag-handle" aria-hidden="true">::</span>
+          <h4>${ProfilesView.escapeHtml(task.title)}</h4>
+          <button class="play-button ${isTiming ? "active" : ""}" type="button" data-task-timer="${task.id}" title="${isTiming ? "Stop timer" : "Start timer"}">${isTiming ? "Stop" : "Play"}</button>
+        </div>
+        ${description}
         <div class="task-meta">
           <span class="priority-badge priority-${task.priority}">${task.priority}</span>
+          ${task.recurrence && task.recurrence !== "none" ? `<span class="tag">repeats ${task.recurrence}</span>` : ""}
           ${due ? `<span class="${overdue ? "overdue" : ""}">Due ${due}</span>` : ""}
           ${task.estimatedDuration ? `<span>${TaskStorage.formatMinutes(task.estimatedDuration)}</span>` : ""}
+          ${task.actualLoggedMinutes ? `<span>logged ${TaskStorage.formatMinutes(task.actualLoggedMinutes)}</span>` : ""}
           ${tags}
         </div>
         <div class="quick-edit-row">
+          <span class="quick-edit-label">Move</span>
           <select data-inline-edit="status" data-task-id="${task.id}" aria-label="Change status for ${ProfilesView.escapeHtml(task.title)}">
             ${columns.map((column) => `<option value="${column.id}" ${task.status === column.id ? "selected" : ""}>${column.label}</option>`).join("")}
           </select>
           <select data-inline-edit="priority" data-task-id="${task.id}" aria-label="Change priority for ${ProfilesView.escapeHtml(task.title)}">
             ${["low", "medium", "high", "urgent"].map((priority) => `<option value="${priority}" ${task.priority === priority ? "selected" : ""}>${priority}</option>`).join("")}
           </select>
+          <input data-inline-edit="scheduledDate" data-task-id="${task.id}" type="date" value="${task.scheduledDate || ""}" aria-label="Schedule date for ${ProfilesView.escapeHtml(task.title)}" />
+          <input data-inline-edit="scheduledTime" data-task-id="${task.id}" type="time" step="1800" value="${task.scheduledTime || ""}" aria-label="Schedule time for ${ProfilesView.escapeHtml(task.title)}" />
+          ${task.status === "done" ? `<button class="button ghost" type="button" data-archive-task="${task.id}">Archive</button>` : ""}
         </div>
       </article>
     `;

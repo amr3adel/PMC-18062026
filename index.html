@@ -36,6 +36,11 @@
             <button class="view-button" type="button" data-view="calendar">Calendar</button>
             <button class="view-button" type="button" data-view="weekly">Weekly</button>
           </div>
+          <div class="timer-shell" aria-label="Pomodoro timer">
+            <button id="pomodoro-toggle" class="icon-button" type="button" title="Start Pomodoro">25</button>
+            <span id="timer-status" class="timer-status">No timer</span>
+          </div>
+          <button id="archive-history-btn" class="icon-button" type="button" title="Archive history" aria-label="Archive history">Archive</button>
           <button id="theme-toggle" class="icon-button" type="button" title="Toggle theme" aria-label="Toggle theme">Auto</button>
         </div>
       </header>
@@ -71,6 +76,7 @@
         <label id="single-description-field" class="field">
           <span>Description</span>
           <textarea id="task-description" rows="4"></textarea>
+          <div id="task-description-preview" class="markdown-preview hidden"></div>
         </label>
 
         <label id="bulk-titles-field" class="field hidden">
@@ -119,6 +125,16 @@
         </div>
 
         <label class="field">
+          <span>Repeat</span>
+          <select id="task-recurrence">
+            <option value="none">None</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </label>
+
+        <label class="field">
           <span>Tags</span>
           <input id="task-tags" type="text" placeholder="admin, errands, client" autocomplete="off" />
           <div id="task-tags-chips" class="tag-chip-list" aria-label="Selected tags"></div>
@@ -145,9 +161,27 @@
       </form>
     </div>
 
+    <div id="archive-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="archive-modal-title">
+      <section class="archive-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Archive</p>
+            <h2 id="archive-modal-title">Archive History</h2>
+          </div>
+          <button id="archive-close" class="icon-button" type="button" aria-label="Close archive history">x</button>
+        </div>
+        <label class="field">
+          <span>Search archived tasks</span>
+          <input id="archive-search" type="search" placeholder="Search archived tasks" autocomplete="off" />
+        </label>
+        <div id="archive-list" class="archive-list"></div>
+      </section>
+    </div>
+
     <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
     <script src="storage.js"></script>
+    <script src="markdown.js"></script>
     <script src="task-modal.js"></script>
     <script src="profiles.js"></script>
     <script src="kanban.js"></script>

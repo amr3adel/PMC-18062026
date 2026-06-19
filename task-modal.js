@@ -63,6 +63,7 @@
       title: document.getElementById("task-title"),
       bulkTitles: document.getElementById("task-bulk-titles"),
       description: document.getElementById("task-description"),
+      descriptionPreview: document.getElementById("task-description-preview"),
       status: document.getElementById("task-status"),
       priority: document.getElementById("task-priority"),
       dueDate: document.getElementById("task-due-date"),
@@ -72,6 +73,7 @@
       tagChips: document.getElementById("task-tags-chips"),
       scheduledDate: document.getElementById("task-scheduled-date"),
       scheduledTime: document.getElementById("task-scheduled-time"),
+      recurrence: document.getElementById("task-recurrence"),
     };
 
     let mode = "create";
@@ -104,6 +106,7 @@
       fields.title.value = editingTask ? editingTask.title : "";
       fields.bulkTitles.value = "";
       fields.description.value = editingTask ? editingTask.description || "" : "";
+      renderDescriptionPreview();
       fields.status.value = editingTask ? editingTask.status : defaults.status || "backlog";
       fields.priority.value = editingTask ? editingTask.priority : defaults.priority || "medium";
       fields.dueDate.value = editingTask ? editingTask.dueDate || "" : defaults.dueDate || "";
@@ -114,6 +117,7 @@
       renderTagChips();
       fields.scheduledDate.value = editingTask ? editingTask.scheduledDate || "" : defaults.scheduledDate || "";
       fields.scheduledTime.value = editingTask ? editingTask.scheduledTime || "" : defaults.scheduledTime || "";
+      fields.recurrence.value = editingTask ? editingTask.recurrence || "none" : defaults.recurrence || "none";
 
       modal.classList.remove("hidden");
       fields.title.focus();
@@ -141,6 +145,16 @@
         fields.tags.value = "";
         renderTagChips();
       }
+    }
+
+    function renderDescriptionPreview() {
+      if (!window.TaskMarkdown || !fields.description.value.trim()) {
+        fields.descriptionPreview.classList.add("hidden");
+        fields.descriptionPreview.innerHTML = "";
+        return;
+      }
+      fields.descriptionPreview.classList.remove("hidden");
+      fields.descriptionPreview.innerHTML = window.TaskMarkdown.render(fields.description.value);
     }
 
     function renderTagChips() {
@@ -183,6 +197,9 @@
         tags: selectedTags,
         scheduledDate: fields.scheduledDate.value || null,
         scheduledTime: fields.scheduledTime.value || null,
+        recurrence: fields.recurrence.value,
+        actualLoggedMinutes: Number(base.actualLoggedMinutes) || 0,
+        archivedAt: base.archivedAt || null,
         updatedAt: now,
       };
     }
@@ -197,6 +214,7 @@
         tags: [...selectedTags],
         scheduledDate: fields.scheduledDate.value || null,
         scheduledTime: fields.scheduledTime.value || null,
+        recurrence: fields.recurrence.value,
       };
     }
 
@@ -211,6 +229,8 @@
         description: "",
         ...sharedFields,
         tags: [...sharedFields.tags],
+        actualLoggedMinutes: 0,
+        archivedAt: null,
         createdAt: now,
         updatedAt: now,
       }));
@@ -239,6 +259,7 @@
     });
 
     fields.tags.addEventListener("blur", syncTagsFromInput);
+    fields.description.addEventListener("input", renderDescriptionPreview);
     fields.tags.addEventListener("keydown", (event) => {
       if (event.key === "," || event.key === "Enter") {
         event.preventDefault();

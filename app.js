@@ -16,12 +16,22 @@
   const viewRoot = document.getElementById("view-root");
   const globalSearch = document.getElementById("global-search");
   const themeToggle = document.getElementById("theme-toggle");
+  const archiveButton = document.getElementById("archive-history-btn");
+  const archiveModal = document.getElementById("archive-modal");
+  const archiveClose = document.getElementById("archive-close");
+  const archiveSearch = document.getElementById("archive-search");
+  const archiveList = document.getElementById("archive-list");
+  const pomodoroToggle = document.getElementById("pomodoro-toggle");
+  const timerStatus = document.getElementById("timer-status");
   const viewButtons = document.querySelectorAll(".view-button");
   const toast = document.getElementById("toast");
 
   let state = TaskStorage.load();
   let activeView = "kanban";
   let searchQuery = "";
+  let archiveQuery = "";
+  let activeTimer = null;
+  let timerInterval = null;
   let undoTimer = null;
   let lastDeleted = null;
 
@@ -75,6 +85,24 @@
       globalSearch.focus();
     });
 
+    archiveButton.addEventListener("click", openArchive);
+    archiveClose.addEventListener("click", closeArchive);
+    archiveModal.addEventListener("click", (event) => {
+      if (event.target === archiveModal) closeArchive();
+    });
+    archiveSearch.addEventListener("input", () => {
+      archiveQuery = archiveSearch.value.trim();
+      renderArchive();
+    });
+
+    pomodoroToggle.addEventListener("click", () => {
+      if (activeTimer && activeTimer.taskId === null) {
+        stopTimer();
+      } else {
+        startTimer(null, "Pomodoro focus", "pomodoro");
+      }
+    });
+
     themeToggle.addEventListener("click", () => {
       const current = document.documentElement.dataset.theme || "";
       const next = current === "dark" ? "light" : current === "light" ? "" : "dark";
@@ -125,6 +153,10 @@
     return state.tasks.filter((task) => task.profileId === profile.id);
   }
 
+  function getActiveProfileTasks() {
+    return getProfileTasks().filter((task) => !task.archivedAt);
+  }
+
   function getVisibleTasks(tasks) {
     const query = searchQuery.toLowerCase();
     if (!query) return tasks;
@@ -138,8 +170,10 @@
   }
 
   function saveTask(task) {
-    const exists = state.tasks.some((current) => current.id === task.id);
+    const previous = state.tasks.find((current) => current.id === task.id);
+    const exists = Boolean(previous);
     state.tasks = exists ? state.tasks.map((current) => (current.id === task.id ? task : current)) : [...state.tasks, task];
+    maybeSpawnRecurringTask(previous, task);
     commit();
   }
 
@@ -150,16 +184,38 @@
   }
 
   function updateTask(taskId, patch) {
+    const previous = state.tasks.find((task) => task.id === taskId);
+    let updatedTask = null;
     state.tasks = state.tasks.map((task) =>
       task.id === taskId
-        ? {
+        ? (updatedTask = {
             ...task,
             ...patch,
             updatedAt: TaskStorage.nowIso(),
-          }
+          })
         : task
     );
+    maybeSpawnRecurringTask(previous, updatedTask);
     commit();
+  }
+
+  function archiveTask(taskId) {
+    updateTask(taskId, { archivedAt: TaskStorage.nowIso() });
+  }
+
+  function archiveDoneTasks() {
+    const profile = getActiveProfile();
+    const now = TaskStorage.nowIso();
+    state.tasks = state.tasks.map((task) =>
+      task.profileId === profile.id && task.status === "done" && !task.archivedAt ? { ...task, archivedAt: now, updatedAt: now } : task
+    );
+    commit();
+  }
+
+  function restoreTask(taskId) {
+    state.tasks = state.tasks.map((task) => (task.id === taskId ? { ...task, archivedAt: null, updatedAt: TaskStorage.nowIso() } : task));
+    commit();
+    renderArchive();
   }
 
   function deleteTask(taskId) {
@@ -202,6 +258,149 @@
     modal.open(null, defaults || {});
   }
 
+  function toggleTaskTimer(taskId) {
+    const task = state.tasks.find((candidate) => candidate.id === taskId);
+    if (!task) return;
+    if (activeTimer && activeTimer.taskId === taskId) {
+      stopTimer();
+    } else {
+      startTimer(taskId, task.title, "task");
+    }
+  }
+
+  function startTimer(taskId, label, mode) {
+    stopTimer();
+    activeTimer = {
+      taskId,
+      label,
+      mode,
+      startedAt: Date.now(),
+      phase: mode === "pomodoro" ? "work" : "task",
+      targetMinutes: mode === "pomodoro" ? 25 : null,
+    };
+    timerInterval = window.setInterval(updateTimerStatus, 1000);
+    updateTimerStatus();
+    render();
+  }
+
+  function stopTimer() {
+    if (!activeTimer) return;
+    const elapsedMinutes = Math.max(1, Math.round((Date.now() - activeTimer.startedAt) / 60000));
+    if (activeTimer.taskId) {
+      state.tasks = state.tasks.map((task) =>
+        task.id === activeTimer.taskId
+          ? {
+              ...task,
+              actualLoggedMinutes: (task.actualLoggedMinutes || 0) + elapsedMinutes,
+              updatedAt: TaskStorage.nowIso(),
+            }
+          : task
+      );
+      TaskStorage.save(state);
+    }
+    window.clearInterval(timerInterval);
+    activeTimer = null;
+    timerInterval = null;
+    updateTimerStatus();
+    render();
+  }
+
+  function updateTimerStatus() {
+    if (!activeTimer) {
+      timerStatus.textContent = "No timer";
+      pomodoroToggle.textContent = "25";
+      return;
+    }
+    const elapsedSeconds = Math.floor((Date.now() - activeTimer.startedAt) / 1000);
+    if (activeTimer.mode === "pomodoro" && activeTimer.targetMinutes && elapsedSeconds >= activeTimer.targetMinutes * 60) {
+      if (activeTimer.phase === "work") {
+        activeTimer.phase = "break";
+        activeTimer.label = "Pomodoro break";
+        activeTimer.startedAt = Date.now();
+        activeTimer.targetMinutes = 5;
+        timerStatus.textContent = "Pomodoro break: 5:00";
+        return;
+      }
+      stopTimer();
+      return;
+    }
+    const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+    const seconds = String(elapsedSeconds % 60).padStart(2, "0");
+    if (activeTimer.mode === "pomodoro") {
+      const remainingSeconds = Math.max(0, activeTimer.targetMinutes * 60 - elapsedSeconds);
+      const remainingMinutes = Math.floor(remainingSeconds / 60);
+      const remainingRemainder = String(remainingSeconds % 60).padStart(2, "0");
+      timerStatus.textContent = `${activeTimer.label}: ${remainingMinutes}:${remainingRemainder}`;
+    } else {
+      timerStatus.textContent = `${activeTimer.label}: ${elapsedMinutes}:${seconds}`;
+    }
+    pomodoroToggle.textContent = "Stop";
+  }
+
+  function maybeSpawnRecurringTask(previous, updated) {
+    if (!previous || !updated) return;
+    if (previous.status === "done" || updated.status !== "done" || updated.recurrence === "none") return;
+    const now = TaskStorage.nowIso();
+    state.tasks.push({
+      ...updated,
+      id: TaskStorage.uuid(),
+      status: "todo",
+      dueDate: shiftDate(updated.dueDate, updated.recurrence),
+      scheduledDate: shiftDate(updated.scheduledDate, updated.recurrence),
+      archivedAt: null,
+      actualLoggedMinutes: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  function shiftDate(value, recurrence) {
+    if (!value) return null;
+    const date = TaskStorage.parseDateOnly(value);
+    if (recurrence === "daily") date.setDate(date.getDate() + 1);
+    if (recurrence === "weekly") date.setDate(date.getDate() + 7);
+    if (recurrence === "monthly") date.setMonth(date.getMonth() + 1);
+    return TaskStorage.toDateInput(date);
+  }
+
+  function openArchive() {
+    archiveModal.classList.remove("hidden");
+    renderArchive();
+    archiveSearch.focus();
+  }
+
+  function closeArchive() {
+    archiveModal.classList.add("hidden");
+  }
+
+  function renderArchive() {
+    const query = archiveQuery.toLowerCase();
+    const archived = getProfileTasks()
+      .filter((task) => task.archivedAt)
+      .filter((task) => !query || [task.title, task.description, ...(task.tags || [])].join(" ").toLowerCase().includes(query))
+      .sort((a, b) => (b.archivedAt || "").localeCompare(a.archivedAt || ""));
+
+    archiveList.innerHTML = archived.length
+      ? archived
+          .map(
+            (task) => `
+              <article class="archive-item">
+                <div>
+                  <h4>${ProfilesView.escapeHtml(task.title)}</h4>
+                  <p>${task.archivedAt ? `Archived ${new Date(task.archivedAt).toLocaleDateString()}` : ""}</p>
+                </div>
+                <button class="button ghost" type="button" data-restore-task="${task.id}">Restore</button>
+              </article>
+            `
+          )
+          .join("")
+      : `<p class="muted">No archived tasks found.</p>`;
+
+    archiveList.querySelectorAll("[data-restore-task]").forEach((button) => {
+      button.addEventListener("click", () => restoreTask(button.dataset.restoreTask));
+    });
+  }
+
   function setActiveView(view) {
     activeView = view;
     render();
@@ -218,7 +417,7 @@
 
   function render() {
     const profile = getActiveProfile();
-    const profileTasks = getProfileTasks();
+    const profileTasks = getActiveProfileTasks();
     const visibleTasks = getVisibleTasks(profileTasks);
     document.documentElement.style.setProperty("--accent", profile.color);
     profiles.render();
@@ -235,6 +434,10 @@
       updateTask,
       priorityColor,
       statusLabels,
+      activeTimer,
+      archiveTask,
+      archiveDoneTasks,
+      toggleTaskTimer,
     };
 
     if (activeView === "calendar") {

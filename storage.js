@@ -100,9 +100,12 @@
               priority: ["low", "medium", "high", "urgent"].includes(task.priority) ? task.priority : "medium",
               dueDate: task.dueDate || null,
               estimatedDuration: Number.isFinite(Number(task.estimatedDuration)) ? Number(task.estimatedDuration) : null,
+              actualLoggedMinutes: Number.isFinite(Number(task.actualLoggedMinutes)) ? Number(task.actualLoggedMinutes) : 0,
               tags: Array.isArray(task.tags) ? task.tags : [],
               scheduledDate: task.scheduledDate || null,
               scheduledTime: task.scheduledTime || null,
+              recurrence: ["none", "daily", "weekly", "monthly"].includes(task.recurrence) ? task.recurrence : "none",
+              archivedAt: task.archivedAt || null,
               createdAt: task.createdAt || nowIso(),
               updatedAt: task.updatedAt || nowIso(),
             }))

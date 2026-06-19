@@ -201,6 +201,21 @@ button {
   justify-content: flex-end;
 }
 
+.timer-shell {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.timer-status {
+  color: var(--muted);
+  font-size: 12px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .search-box {
   align-items: center;
   background: var(--surface-soft);
@@ -474,6 +489,25 @@ button {
   outline-offset: -6px;
 }
 
+.is-dragging-task .task-list,
+.is-dragging-task .date-cell,
+.is-dragging-task .week-slot,
+.is-dragging-task .unscheduled-list {
+  outline: 1px dashed color-mix(in srgb, var(--accent) 62%, transparent);
+  outline-offset: -7px;
+  animation: dropPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes dropPulse {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: var(--accent-soft);
+  }
+}
+
 .drop-zone-label {
   background: var(--accent);
   border-radius: 999px;
@@ -530,11 +564,84 @@ button {
   z-index: 9999;
 }
 
-.task-card h4,
+.card-title-row {
+  align-items: flex-start;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.drag-handle {
+  color: var(--muted);
+  cursor: grab;
+  font-weight: 900;
+  letter-spacing: -0.18em;
+  padding-top: 1px;
+}
+
+.card-title-row h4,
 .day-panel-item h4 {
   font-size: 14px;
   line-height: 1.3;
   margin: 0 0 9px;
+}
+
+.play-button {
+  background: var(--surface-soft);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  min-height: 26px;
+  padding: 0 8px;
+}
+
+.play-button.active {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.card-description,
+.markdown-preview {
+  background: color-mix(in srgb, var(--surface-soft) 70%, transparent);
+  border: 0.5px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 8px 0;
+  padding: 8px;
+}
+
+.card-description p,
+.markdown-preview p {
+  margin: 0 0 6px;
+}
+
+.card-description p:last-child,
+.markdown-preview p:last-child {
+  margin-bottom: 0;
+}
+
+.card-description ul,
+.markdown-preview ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.card-description code,
+.markdown-preview code {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.card-description pre,
+.markdown-preview pre {
+  overflow: auto;
+  margin: 0;
 }
 
 .task-card:focus,
@@ -560,7 +667,16 @@ button {
   margin-top: 10px;
 }
 
-.quick-edit-row select {
+.quick-edit-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  grid-column: 1 / -1;
+  text-transform: uppercase;
+}
+
+.quick-edit-row select,
+.quick-edit-row input {
   background: var(--surface-soft);
   border: 0.5px solid var(--border);
   border-radius: 7px;
@@ -570,11 +686,15 @@ button {
   padding: 0 8px;
 }
 
+.quick-edit-row .button {
+  min-height: 32px;
+}
+
 .density-compact .task-card {
   padding: 8px 10px;
 }
 
-.density-compact .task-card h4 {
+.density-compact .card-title-row h4 {
   margin-bottom: 6px;
 }
 
@@ -1025,6 +1145,44 @@ button {
   overflow: auto;
   padding: 24px;
   width: min(540px, 100%);
+}
+
+.archive-panel {
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 560px;
+  overflow: auto;
+  padding: 24px;
+  width: min(560px, 100%);
+}
+
+.archive-list {
+  display: grid;
+  gap: 10px;
+}
+
+.archive-item {
+  align-items: center;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 12px;
+}
+
+.archive-item h4 {
+  margin: 0 0 4px;
+}
+
+.archive-item p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
 }
 
 .panel-header {
